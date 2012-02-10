@@ -107,7 +107,11 @@ my $current_size = -1;
 my $current_matching;
 
 # For each of the files in that sorted array,
+my %file_by_content;
+my %known_hashes;
 foreach my $file (@files_sorted) {
+
+    my $unmatched = 1;
 
     # ... check that:
     if (
@@ -116,18 +120,28 @@ foreach my $file (@files_sorted) {
             and 
         # ... they aren't the same inode, in which case it's probably an intentional hard link;
         inode($current_matching) != inode($file)
-            and
-        # ... the MD5 hashes match.
-        checksum($current_matching) eq checksum($file)
     )
     {
-        # If so, conclude it's a duplicate, and add it to the matches for this file.
-        $any_matches = 1;
-        push @{$matches{$current_matching}}, $file;
+        # ... possibly matches this file, or an earlier one of the same size
+
+        # Make sure we've calculated the digest of the previous file
+        $known_hashes{$current_matching} ||= checksum($current_matching);
+        $file_by_content{$known_hashes{$current_matching}} = $current_matching;
+
+        # And digest the current file
+        $known_hashes{$file} ||= checksum($file);
+
+        # Check whether we've seen a file with this digest before...
+        if ($file_by_content{$known_hashes{$file}}) {
+            # If so, conclude it's a duplicate, and add it to the matches for that file.
+            $any_matches = 1;
+            push @{$matches{$file_by_content{$known_hashes{$file}}}}, $file;
+            $unmatched = 0;
+        }
     }
 
     # Otherwise, start a new group and keep iterating.
-    else
+    if ($unmatched)
     {
         $current_matching = $file;
         $current_size = $sizes{$file}
