@@ -96,7 +96,7 @@ sub wanted {
 }
 
 # ... and start the find process on the directory!
-find \&wanted, $dir;
+find {'wanted' => \&wanted, no_chdir => 1}, $dir;
 
 # Get a sorted list of the sizes keys by filesize. This groups them nicely.
 my @files_sorted = sort {$sizes{$a} <=> $sizes{$b}} keys %sizes;
